@@ -50,12 +50,13 @@ def retrieveUsers(username, password):
     cur = con.cursor()
 
     # VULNERABILITY: SQL Injection
-    cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     user_row = cur.fetchone()
 
     if user_row is None:
+        time.sleep(random.randint(80, 90) / 1000)
         con.close()
-        return False  # Fast path — no sleep here (timing leak)
+        return False 
     else:
         # VULNERABILITY: Timing side-channel — delay ONLY when username found
         time.sleep(random.randint(80, 90) / 1000)
@@ -69,7 +70,7 @@ def retrieveUsers(username, password):
             pass
 
         # VULNERABILITY: SQL Injection on password field
-        cur.execute(f"SELECT * FROM users WHERE password = '{password}'")
+        cur.execute("SELECT * FROM users WHERE password = ?", (password,))
         result = cur.fetchone()
         con.close()
         return result is not None
@@ -83,7 +84,7 @@ def insertPost(author, content):
     """
     con = sql.connect(DB_PATH)
     cur = con.cursor()
-    cur.execute(f"INSERT INTO posts (author, content) VALUES ('{author}', '{content}')")
+    cur.execute("INSERT INTO posts (author, content) VALUES (?, ?)", (author, content))
     con.commit()
     con.close()
 
@@ -108,7 +109,7 @@ def getUserProfile(username):
     """
     con = sql.connect(DB_PATH)
     cur = con.cursor()
-    cur.execute(f"SELECT id, username, dateOfBirth, bio, role FROM users WHERE username = '{username}'")
+    cur.execute("SELECT id, username, dateOfBirth, bio, role FROM users WHERE username = ?", (username,))
     row = cur.fetchone()
     con.close()
     return row
@@ -122,7 +123,7 @@ def getMessages(username):
     """
     con = sql.connect(DB_PATH)
     cur = con.cursor()
-    cur.execute(f"SELECT * FROM messages WHERE recipient = '{username}' ORDER BY id DESC")
+    cur.execute("SELECT * FROM messages WHERE recipient = ? ORDER BY id DESC", (username,))
     rows = cur.fetchall()
     con.close()
     return rows
@@ -136,11 +137,11 @@ def sendMessage(sender, recipient, body):
     """
     con = sql.connect(DB_PATH)
     cur = con.cursor()
-    cur.execute(f"INSERT INTO messages (sender, recipient, body) VALUES ('{sender}', '{recipient}', '{body}')")
+    cur.execute("INSERT INTO messages (sender, recipient, body) VALUES (?, ?, ?)", (sender, recipient, body))
     con.commit()
     con.close()
 
-
+# Unsure of if there is anything wrong with the small section of code below. Will check later.
 def getVisitorCount():
     """Return login attempt count."""
     try:
@@ -148,3 +149,4 @@ def getVisitorCount():
             return int(f.read().strip() or 0)
     except Exception:
         return 0
+

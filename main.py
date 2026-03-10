@@ -149,7 +149,7 @@ def messages():
 
 
 # ── Success Page ──────────────────────────────────────────────────────────────
-
+    
 @app.route("/success.html")
 def success():
     msg = request.args.get("msg", "Your action was completed successfully.")
