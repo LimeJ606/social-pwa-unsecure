@@ -52,7 +52,10 @@ CORS(app)
 # VULNERABILITY: Hardcoded secret key — session cookies can be forged
 app.secret_key = "supersecretkey123"
 
-
+@app.after_request
+def set_csp(response):
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self';"
+    return response
 # ── Home / Login ──────────────────────────────────────────────────────────────
 
 @app.route("/", methods=["POST", "GET"])
