@@ -2,6 +2,8 @@ import sqlite3 as sql
 import time
 import random
 import os
+import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  user_management.py
@@ -26,11 +28,12 @@ def insertUser(username, password, DoB, bio=""):
     Insert a new user.
     VULNERABILITY: Password stored as plaintext — no bcrypt/argon2 hashing.
     """
+    hashed_password = generate_password_hash(password)
     con = sql.connect(DB_PATH)
     cur = con.cursor()
     cur.execute(
         "INSERT INTO users (username, password, dateOfBirth, bio) VALUES (?,?,?,?)",
-        (username, password, DoB, bio),
+        (username, hashed_password, DoB, bio),
     )
     con.commit()
     con.close()
@@ -52,6 +55,12 @@ def retrieveUsers(username, password):
     # VULNERABILITY: SQL Injection
     cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     user_row = cur.fetchone()
+    stored_hash = user_row[2]
+    if check_password_hash(stored_hash, password):
+        result = user_row
+    else:
+        result = None
+
 
     if user_row is None:
         time.sleep(random.randint(80, 90) / 1000)
