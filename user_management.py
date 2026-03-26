@@ -55,12 +55,18 @@ def retrieveUsers(username, password):
     # VULNERABILITY: SQL Injection
     cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     user_row = cur.fetchone()
-    stored_hash = user_row[2]
-    if check_password_hash(stored_hash, password):
-        result = user_row
-    else:
-        result = None
 
+    if user_row:
+        stored_hash = user_row[2]  # Assuming password column is index 2
+        password_valid = check_password_hash(stored_hash, password)
+    else:
+        # Dummy check for non-existent users (prevents timing leak)
+        dummy_hash = generate_password_hash("dummy")  # Fixed dummy hash
+        password_valid = check_password_hash(dummy_hash, password)
+    
+    
+    time.sleep(0.1)
+    
 
     if user_row is None:
         time.sleep(random.randint(80, 90) / 1000)
