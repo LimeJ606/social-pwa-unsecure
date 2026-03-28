@@ -6,8 +6,9 @@ from flask import Flask, render_template, request, redirect
 from flask_cors import CORS
 from datetime import datetime
 import user_management as db
+from flask_wtf.csrf import generate_csrf
 from flask_wtf.csrf import CSRFProtect
-import os 
+
 
 # ── Auto-bootstrap the database on every startup ──────────────────────────────
 # This ensures students never see "no such table" even if setup_db.py
@@ -48,13 +49,14 @@ init_db()
 # ─────────────────────────────────────────────────────────────────────────────
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'use-a-long-random-string-here'
+app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123")
 csrf = CSRFProtect(app)
+app.jinja_env.globals["csrf_token"] = generate_csrf
 
 # VULNERABILITY: Wildcard CORS — allows ANY origin to make credentialed requests
 
 
-# VULNERABILITY: Hardcoded secret key — session cookies can be forged
+
 
 
 
