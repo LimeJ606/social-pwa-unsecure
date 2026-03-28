@@ -54,7 +54,7 @@ csrf = CSRFProtect(app)
 app.jinja_env.globals["csrf_token"] = generate_csrf
 
 # VULNERABILITY: Wildcard CORS — allows ANY origin to make credentialed requests
-#testing commit
+#testing 
 
 
 
