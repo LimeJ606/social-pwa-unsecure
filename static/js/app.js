@@ -27,7 +27,7 @@ if ('serviceWorker' in navigator) {
 // ── Push Notification Subscription ───────────────────────────────────────────
 // VULNERABILITY: Notification permission is requested immediately on page load
 // without any user-initiated action — bad practice and against browser guidelines
-window.addEventListener('load', function () {
+function requestNotificationPermission() {
   if ('Notification' in window && 'serviceWorker' in navigator) {
     Notification.requestPermission().then(function (permission) {
       console.log('[App] Notification permission:', permission);
@@ -36,17 +36,20 @@ window.addEventListener('load', function () {
       }
     });
   }
-});
+};
 
 async function subscribeToPush() {
   try {
     const registration = await navigator.serviceWorker.ready;
 
-    // VULNERABILITY: Hardcoded VAPID public key in client-side JavaScript
-    // Anyone reading the source can use this key to send push messages to all subscribers
-    const applicationServerKey = urlBase64ToUint8Array(
-      'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
-    );
+    const keyResponse = await fetch("/vapid-public-key", {
+      credentials: "same-origin"
+    });
+    const keyData = await keyResponse.json();
+    const applicationServerKey = urlBase64ToUint8Array(keyData.publicKey);
+
+
+    
 
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
@@ -55,9 +58,15 @@ async function subscribeToPush() {
 
     // VULNERABILITY: Push subscription POSTed to server with no CSRF token
     // An attacker who tricks the user into visiting a page can trigger this fetch
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    
     await fetch('/subscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
       body: JSON.stringify(subscription)
     });
 
@@ -90,7 +99,7 @@ window.addEventListener('DOMContentLoaded', function () {
   if (msg && msgBox) {
     // VULNERABILITY: innerHTML allows arbitrary HTML/JS execution from URL param
     // Secure fix: use textContent instead
-    msgBox.innerHTML = msg;
+    msgBox.textContent = msg;
   }
 
   // ── Highlight active nav link ──────────────────────────────────────────────
@@ -107,19 +116,28 @@ window.addEventListener('DOMContentLoaded', function () {
 // VULNERABILITY: Listens for postMessage events from ANY origin (no origin check)
 // An iframe on a malicious page can send messages that trigger actions here
 window.addEventListener('message', function (event) {
-  // VULNERABILITY: No check on event.origin — accepts messages from any domain
-  console.log('[App] postMessage received from:', event.origin, 'data:', event.data);
+  const trustedOrigin = window.location.origin;
 
-  if (event.data && event.data.action === 'redirect') {
-    // VULNERABILITY: Redirects to attacker-supplied URL with no validation
-    window.location.href = event.data.url;
+  if (event.origin !== trustedOrigin) {
+    return;
   }
 
-  if (event.data && event.data.action === 'setMsg') {
+  if (!event.data || typeof event.data !== 'object') {
+    return;
+  }
+
+  if (event.data.action === 'redirect') {
+    const url = event.data.url;
+    if (typeof url === 'string' && url.startsWith('/')) {
+      window.location.href = url;
+    }
+    return;
+  }
+
+  if (event.data.action === 'setMsg') {
     const msgBox = document.getElementById('js-msg-box');
-    if (msgBox) {
-      // VULNERABILITY: innerHTML again — cross-origin XSS via postMessage
-      msgBox.innerHTML = event.data.content;
+    if (msgBox && typeof event.data.content === 'string') {
+      msgBox.textContent = event.data.content;
     }
   }
 });
