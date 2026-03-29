@@ -5,6 +5,8 @@ import os
 import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  user_management.py
 #  Handles all direct database operations for the Unsecure Social PWA.

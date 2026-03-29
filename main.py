@@ -2,6 +2,7 @@ import os
 import sys
 import sqlite3
 import subprocess
+import re
 from flask import Flask, render_template, request, redirect
 from flask_cors import CORS
 from datetime import datetime
@@ -43,6 +44,23 @@ def init_db():
             print("[SocialPWA] WARNING: setup_db failed:", result.stderr)
     else:
         print("[SocialPWA] Database already exists — skipping setup.")
+
+def sanitize_plain_text(value, max_length=1000):
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        value = str(value)
+
+    value = value.strip()
+    if len(value) > max_length:
+        value = value[:max_length]
+
+    # Remove script blocks
+    value = re.sub(r"(?is)<script.*?>.*?</script>", "", value)
+    # Remove any remaining HTML tags
+    value = re.sub(r"(?is)<.*?>", "", value)
+
+    return value
 
 init_db()
 
@@ -117,9 +135,21 @@ def feed():
         return redirect(request.args.get("url"), code=302)
 
     if request.method == "POST":
-        post_content = request.form["content"]
+        raw_content = request.form["content"]
+        post_content = sanitize_post_content(raw_content, max_length=1000)
         # VULNERABILITY: IDOR — username from hidden form field, can be tampered with
         username = request.form.get("username", "Anonymous")
+
+        if not post_content:
+            posts = db.getPosts()
+            return render_template(
+                "feed.html",
+                username=username,
+                state=True,
+                posts=posts,
+                msg="Please enter a valid post."
+            )
+        
         db.insertPost(username, post_content)
         posts = db.getPosts()
         return render_template("feed.html", username=username, state=True, posts=posts)
@@ -147,9 +177,9 @@ def profile():
 def messages():
     # VULNERABILITY: No authentication — change ?user= to read anyone's inbox
     if request.method == "POST":
-        sender    = request.form.get("sender", "Anonymous")
-        recipient = request.form.get("recipient", "")
-        body      = request.form.get("body", "")
+        sender    = sanitize_plain_text(request.form.get("sender", "Anonymous"), max_length=30)
+        recipient = sanitize_plain_text(request.form.get("recipient", ""), max_length=30)
+        body      = sanitize_plain_text(request.form.get("body", ""), max_length=500)
         db.sendMessage(sender, recipient, body)
         msgs = db.getMessages(recipient)
         return render_template("messages.html", messages=msgs, username=sender, recipient=recipient)
