@@ -6,7 +6,6 @@ import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 #  user_management.py
 #  Handles all direct database operations for the Unsecure Social PWA.
@@ -30,6 +29,7 @@ def insertUser(username, password, DoB, bio=""):
     Insert a new user.
     VULNERABILITY: Password stored as plaintext — no bcrypt/argon2 hashing.
     """
+    
     hashed_password = generate_password_hash(password)
     con = sql.connect(DB_PATH)
     cur = con.cursor()
@@ -57,12 +57,12 @@ def retrieveUsers(username, password):
     # VULNERABILITY: SQL Injection
     cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     user_row = cur.fetchone()
+    
 
     if user_row:
         stored_hash = user_row[2]  # Assuming password column is index 2
         password_valid = check_password_hash(stored_hash, password)
     else:
-        # Dummy check for non-existent users (prevents timing leak)
         dummy_hash = generate_password_hash("dummy")  # Fixed dummy hash
         password_valid = check_password_hash(dummy_hash, password)
     
@@ -86,11 +86,10 @@ def retrieveUsers(username, password):
         except Exception:
             pass
 
-        # VULNERABILITY: SQL Injection on password field
-        cur.execute("SELECT * FROM users WHERE password = ?", (password,))
-        result = cur.fetchone()
+        
+       
         con.close()
-        return result is not None
+        return password_valid
 
 
 def insertPost(author, content):

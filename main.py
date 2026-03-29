@@ -136,7 +136,7 @@ def feed():
 
     if request.method == "POST":
         raw_content = request.form["content"]
-        post_content = sanitize_post_content(raw_content, max_length=1000)
+        post_content = sanitize_plain_text(raw_content, max_length=1000)
         # VULNERABILITY: IDOR — username from hidden form field, can be tampered with
         username = request.form.get("username", "Anonymous")
 
