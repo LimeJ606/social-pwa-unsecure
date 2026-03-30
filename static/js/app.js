@@ -112,6 +112,13 @@ window.addEventListener('DOMContentLoaded', function () {
   });
 });
 
+
+const enableNotificationsBtn = document.getElementById('enable-notifications');
+if (enableNotificationsBtn) {
+  enableNotificationsBtn.addEventListener('click', function () {
+    requestNotificationPermission();
+  });
+}
 // ── Insecure postMessage Listener ─────────────────────────────────────────────
 // VULNERABILITY: Listens for postMessage events from ANY origin (no origin check)
 // An iframe on a malicious page can send messages that trigger actions here
