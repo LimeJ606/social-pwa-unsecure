@@ -29,16 +29,21 @@ def insertUser(username, password, DoB, bio=""):
     Insert a new user.
     VULNERABILITY: Password stored as plaintext — no bcrypt/argon2 hashing.
     """
-    
-    hashed_password = generate_password_hash(password)
-    con = sql.connect(DB_PATH)
+    con = sql.connect(DB_PATH) 
     cur = con.cursor()
+
+    cur.execute("SELECT id FROM users WHERE username = ?", (username,))
+    if cur.fetchone():
+        con.close()
+        return False  # User already exists
+    hashed_password = generate_password_hash(password)
     cur.execute(
         "INSERT INTO users (username, password, dateOfBirth, bio) VALUES (?,?,?,?)",
         (username, hashed_password, DoB, bio),
     )
     con.commit()
     con.close()
+    return True
 
 
 def retrieveUsers(username, password):

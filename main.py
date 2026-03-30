@@ -132,10 +132,12 @@ def signup():
         bio      = request.form.get("bio", "")
         # VULNERABILITY: No duplicate username check
         # VULNERABILITY: No input validation or password strength enforcement
-        db.insertUser(username, password, DoB, bio)
+        
+        success = db.insertUser(username, password, DoB, bio)
+        if not success:
+            return render_template("signup.html", msg="Username already exists.")
         return render_template("index.html", msg="Account created! Please log in.")
-    else:
-        return render_template("signup.html")
+
 
 
 # ── Social Feed ───────────────────────────────────────────────────────────────
