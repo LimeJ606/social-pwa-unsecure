@@ -3,12 +3,14 @@ import sys
 import sqlite3
 import subprocess
 import re
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, session
 from flask_cors import CORS
 from datetime import datetime
 import user_management as db
 from flask_wtf.csrf import generate_csrf
 from flask_wtf.csrf import CSRFProtect
+
+
 
 
 # ── Auto-bootstrap the database on every startup ──────────────────────────────
@@ -75,21 +77,26 @@ app.jinja_env.globals["csrf_token"] = generate_csrf
 #testing 
 
 
-
+CORS(app, origins=["http://localhost:5000", "http://localhost:3000"])
 
 
 @app.after_request
 def set_csp(response):
     response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self';"
     return response
+
+def require_login():
+    """Redirect to login if not authenticated."""
+    if "username" not in session:
+        return redirect("/", code=302)
+    return None
 # ── Home / Login ──────────────────────────────────────────────────────────────
 
 @app.route("/", methods=["POST", "GET"])
 @app.route("/index.html", methods=["POST", "GET"])
 def home():
     # VULNERABILITY: Open Redirect — blindly follows 'url' query parameter
-    if request.method == "GET" and request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+    
 
     # VULNERABILITY: Reflected XSS — 'msg' rendered with |safe in template
     if request.method == "GET":
@@ -101,20 +108,24 @@ def home():
         password = request.form["password"]
         isLoggedIn = db.retrieveUsers(username, password)
         if isLoggedIn:
+            session["username"] = username
             posts = db.getPosts()
             return render_template("feed.html", username=username, state=isLoggedIn, posts=posts)
         else:
             return render_template("index.html", msg="Invalid credentials. Please try again.")
 
-
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/", code=302)
 # ── Sign Up ───────────────────────────────────────────────────────────────────
 
 @app.route("/signup.html", methods=["POST", "GET"])
 def signup():
-    if request.method == "GET" and request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+    if request.method == "GET":
+        return render_template("signup.html")
 
-    if request.method == "POST":
+    elif request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
         DoB      = request.form["dob"]
@@ -131,62 +142,70 @@ def signup():
 
 @app.route("/feed.html", methods=["POST", "GET"])
 def feed():
-    if request.method == "GET" and request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+    current_user = session["username"]
 
     if request.method == "POST":
         raw_content = request.form["content"]
         post_content = sanitize_plain_text(raw_content, max_length=1000)
         # VULNERABILITY: IDOR — username from hidden form field, can be tampered with
-        username = request.form.get("username", "Anonymous")
-
+        
         if not post_content:
             posts = db.getPosts()
             return render_template(
                 "feed.html",
-                username=username,
+                username=current_user,
                 state=True,
                 posts=posts,
                 msg="Please enter a valid post."
             )
         
-        db.insertPost(username, post_content)
+        db.insertPost(current_user, post_content)
         posts = db.getPosts()
-        return render_template("feed.html", username=username, state=True, posts=posts)
+        return render_template("feed.html", username=current_user, state=True, posts=posts)
     else:
         posts = db.getPosts()
-        return render_template("feed.html", username="Guest", state=True, posts=posts)
+        return render_template("feed.html", username=current_user, state=True, posts=posts)
 
 
 # ── User Profile ──────────────────────────────────────────────────────────────
 
 @app.route("/profile")
 def profile():
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
     # VULNERABILITY: No authentication check — any visitor can read any profile
     # VULNERABILITY: SQL Injection via 'user' parameter in getUserProfile()
-    if request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
-    username = request.args.get("user", "")
-    profile_data = db.getUserProfile(username)
-    return render_template("profile.html", profile=profile_data, username=username)
+    
+    current_user = session["username"]
+    requested_user = request.args.get("user", current_user)
+    if requested_user != current_user:
+        return "Access Denied", 403
 
+    profile_data = db.getUserProfile(requested_user)
+    return render_template("profile.html", profile=profile_data, username=current_user) 
 
 # ── Direct Messages ───────────────────────────────────────────────────────────
 
 @app.route("/messages", methods=["POST", "GET"])
 def messages():
+    auth_redirect = require_login()
+    if auth_redirect:
+        return auth_redirect
+    current_user = session["username"]
     # VULNERABILITY: No authentication — change ?user= to read anyone's inbox
     if request.method == "POST":
-        sender    = sanitize_plain_text(request.form.get("sender", "Anonymous"), max_length=30)
         recipient = sanitize_plain_text(request.form.get("recipient", ""), max_length=30)
         body      = sanitize_plain_text(request.form.get("body", ""), max_length=500)
-        db.sendMessage(sender, recipient, body)
-        msgs = db.getMessages(recipient)
-        return render_template("messages.html", messages=msgs, username=sender, recipient=recipient)
+        db.sendMessage(current_user, recipient, body)
+        msgs = db.getMessages(current_user)
+        return render_template("messages.html", messages=msgs, username=current_user, recipient=recipient)
     else:
-        username = request.args.get("user", "Guest")
-        msgs = db.getMessages(username)
-        return render_template("messages.html", messages=msgs, username=username, recipient=username)
+        msgs = db.getMessages(current_user)
+        return render_template("messages.html", messages=msgs, username=current_user, recipient=current_user)
 
 
 # ── Success Page ──────────────────────────────────────────────────────────────

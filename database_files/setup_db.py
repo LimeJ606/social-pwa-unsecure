@@ -56,7 +56,7 @@ users = [
 ]
 
 cur.executemany(
-    "INSERT INTO users (username, password, dateOfBirth, bio, role) VALUES (?,?,?,?,?)",
+    "INSERT INTO users (username, hashed_password, dateOfBirth, bio, role) VALUES (?,?,?,?,?)",
     users
 )
 
