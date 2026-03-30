@@ -49,17 +49,12 @@ def insertUser(username, password, DoB, bio=""):
 def retrieveUsers(username, password):
     #"""
     #Authenticate a user.
-    #VULNERABILITY 1 — SQL Injection via f-strings on both username and password.
-    #  Try: username = admin'--   (bypasses password check entirely)
-    #  Try: username = ' OR '1'='1'--
-    #VULNERABILITY 2 — Timing Side-Channel:
-    #  sleep() only fires when username EXISTS, leaking valid usernames via response time.
-    #VULNERABILITY 3 — No account lockout or rate limiting.
+    
     
     con = sql.connect(DB_PATH)
     cur = con.cursor()
 
-    # VULNERABILITY: SQL Injection
+    
     cur.execute("SELECT * FROM users WHERE username = ?", (username,))
     user_row = cur.fetchone()
     
@@ -80,7 +75,7 @@ def retrieveUsers(username, password):
         con.close()
         return False 
     else:
-        # VULNERABILITY: Timing side-channel — delay ONLY when username found
+        
         time.sleep(random.randint(80, 90) / 1000)
 
         try:
@@ -98,11 +93,7 @@ def retrieveUsers(username, password):
 
 
 def insertPost(author, content):
-    """
-    Insert a post.
-    REMOVED: SQL Injection via f-string on both author and content.
-    VULNERABILITY: author comes from a hidden HTML field — easily spoofed (IDOR).
-    """
+    
     con = sql.connect(DB_PATH)
     cur = con.cursor()
     cur.execute("INSERT INTO posts (author, content) VALUES (?, ?)", (author, content))
@@ -124,9 +115,7 @@ def getPosts():
 
 def getUserProfile(username):
     
-    #Get a user profile row.
-    #REMOVED: SQL Injection via f-string — try /profile?user=admin'-- DONE
-    #VULNERABILITY: No authentication check — any visitor can view any profile.
+ 
     
     con = sql.connect(DB_PATH)
     cur = con.cursor()
@@ -138,10 +127,7 @@ def getUserProfile(username):
 
 def getMessages(username):
     
-    #Get inbox for a user.
-    #REMOVED: SQL Injection via f-string.
-    #VULNERABILITY: No auth check — change ?user= to read anyone's inbox.
-    
+   
     con = sql.connect(DB_PATH)
     cur = con.cursor()
     cur.execute("SELECT * FROM messages WHERE recipient = ? ORDER BY id DESC", (username,))
@@ -152,9 +138,7 @@ def getMessages(username):
 
 def sendMessage(sender, recipient, body):
     
-    #Send a DM.
-    #REMOVED: SQL Injection on all three fields. DONE
-    #VULNERABILITY: sender taken from hidden form field — can be spoofed.
+   
     
     con = sql.connect(DB_PATH)
     cur = con.cursor()
@@ -162,7 +146,7 @@ def sendMessage(sender, recipient, body):
     con.commit()
     con.close()
 
-# Unsure of if there is anything wrong with the small section of code below. Will check later.
+
 def getVisitorCount():
     """Return login attempt count."""
     try:

@@ -14,7 +14,7 @@ cur = con.cursor()
 
 # ── Create Tables ──────────────────────────────────────────────────────────────
 
-# VULNERABILITY: No password hashing — passwords stored in plaintext
+# 
 cur.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,

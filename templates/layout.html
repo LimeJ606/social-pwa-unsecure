@@ -6,9 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Unsecure Social PWA{% endblock %}</title>
 
-  <!-- VULNERABILITY: No Content-Security-Policy header or meta tag.
-       Inline scripts, eval(), and external resource loading are all unrestricted.
-       A proper CSP would block XSS execution even if injection occurs. -->
+  
 
   <link rel="stylesheet" href="/static/css/style.css" />
   <link rel="manifest"   href="/static/manifest.json" />

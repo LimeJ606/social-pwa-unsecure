@@ -73,8 +73,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123")
 csrf = CSRFProtect(app)
 app.jinja_env.globals["csrf_token"] = generate_csrf
 
-# VULNERABILITY: Wildcard CORS — allows ANY origin to make credentialed requests
-#testing 
 
 
 CORS(app, origins=["http://localhost:5000", "http://localhost:3000"])
@@ -95,10 +93,7 @@ def require_login():
 @app.route("/", methods=["POST", "GET"])
 @app.route("/index.html", methods=["POST", "GET"])
 def home():
-    # VULNERABILITY: Open Redirect — blindly follows 'url' query parameter
     
-
-    # VULNERABILITY: Reflected XSS — 'msg' rendered with |safe in template
     if request.method == "GET":
         msg = request.args.get("msg", "")
         return render_template("index.html", msg=msg)
@@ -130,8 +125,7 @@ def signup():
         password = request.form["password"]
         DoB      = request.form["dob"]
         bio      = request.form.get("bio", "")
-        # VULNERABILITY: No duplicate username check
-        # VULNERABILITY: No input validation or password strength enforcement
+        
         
         success = db.insertUser(username, password, DoB, bio)
         if not success:
@@ -152,7 +146,6 @@ def feed():
     if request.method == "POST":
         raw_content = request.form["content"]
         post_content = sanitize_plain_text(raw_content, max_length=1000)
-        # VULNERABILITY: IDOR — username from hidden form field, can be tampered with
         
         if not post_content:
             posts = db.getPosts()
@@ -179,8 +172,6 @@ def profile():
     auth_redirect = require_login()
     if auth_redirect:
         return auth_redirect
-    # VULNERABILITY: No authentication check — any visitor can read any profile
-    # VULNERABILITY: SQL Injection via 'user' parameter in getUserProfile()
     
     current_user = session["username"]
     requested_user = request.args.get("user", current_user)
@@ -198,7 +189,7 @@ def messages():
     if auth_redirect:
         return auth_redirect
     current_user = session["username"]
-    # VULNERABILITY: No authentication — change ?user= to read anyone's inbox
+   
     if request.method == "POST":
         recipient = sanitize_plain_text(request.form.get("recipient", ""), max_length=30)
         body      = sanitize_plain_text(request.form.get("body", ""), max_length=500)

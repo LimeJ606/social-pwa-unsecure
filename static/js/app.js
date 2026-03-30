@@ -1,12 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  app.js  —  Unsecure Social PWA  —  Frontend JavaScript
 //
-//  INTENTIONAL VULNERABILITIES (for educational use):
-//    1. DOM-based XSS       — msg parameter injected via innerHTML (no sanitisation)
-//    2. Aggressive push     — requests notification permission immediately on load
-//    3. Hardcoded VAPID key — visible to any student who views page source
-//    4. No CSRF protection  — fetch() calls include no CSRF token
-//    5. Insecure postMessage — message origin is never validated
+//  
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Service Worker Registration ───────────────────────────────────────────────
@@ -25,8 +20,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Push Notification Subscription ───────────────────────────────────────────
-// VULNERABILITY: Notification permission is requested immediately on page load
-// without any user-initiated action — bad practice and against browser guidelines
+// 
 function requestNotificationPermission() {
   if ('Notification' in window && 'serviceWorker' in navigator) {
     Notification.requestPermission().then(function (permission) {
@@ -56,8 +50,7 @@ async function subscribeToPush() {
       applicationServerKey: applicationServerKey
     });
 
-    // VULNERABILITY: Push subscription POSTed to server with no CSRF token
-    // An attacker who tricks the user into visiting a page can trigger this fetch
+    // 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
     
     await fetch('/subscribe', {
@@ -87,18 +80,14 @@ function urlBase64ToUint8Array(base64String) {
   return output;
 }
 
-// ── DOM-based XSS ─────────────────────────────────────────────────────────────
-// VULNERABILITY: Reads 'msg' from the URL query string and injects it via innerHTML
-// A crafted link like /?msg=<img src=x onerror=alert(1)> will execute JavaScript
-// This is separate from the server-side reflected XSS in index.html (double vuln)
+// 
 window.addEventListener('DOMContentLoaded', function () {
   const params  = new URLSearchParams(window.location.search);
   const msg     = params.get('msg');
   const msgBox  = document.getElementById('js-msg-box');
 
   if (msg && msgBox) {
-    // VULNERABILITY: innerHTML allows arbitrary HTML/JS execution from URL param
-    // Secure fix: use textContent instead
+    // 
     msgBox.textContent = msg;
   }
 
@@ -120,8 +109,7 @@ if (enableNotificationsBtn) {
   });
 }
 // ── Insecure postMessage Listener ─────────────────────────────────────────────
-// VULNERABILITY: Listens for postMessage events from ANY origin (no origin check)
-// An iframe on a malicious page can send messages that trigger actions here
+// 
 window.addEventListener('message', function (event) {
   const trustedOrigin = window.location.origin;
 
