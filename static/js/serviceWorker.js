@@ -10,7 +10,7 @@
 //    6. Hardcoded VAPID    — public key visible in source; anyone can send pushes
 // ─────────────────────────────────────────────────────────────────────────────
 
-// VULNERABILITY: Predictable, hardcoded cache name makes targeted cache poisoning easier
+
 const CACHE_NAME = 'social-pwa-cache-v1';
 
 // VULNERABILITY: Caches authenticated pages (feed, messages, profile)
@@ -127,7 +127,7 @@ self.addEventListener('push', function (event) {
   }
 
   const options = {
-    body: data.body,
+    body: typeof data.body === 'string' ? data.body.substring(0, 150) : 'You have a new notification!',
     icon: '/static/icons/icon-192.png',
     badge: '/static/icons/icon-192.png',
     tag: 'social-pwa-notification',
@@ -136,12 +136,12 @@ self.addEventListener('push', function (event) {
       // On click, user is navigated to attacker-controlled URL (push phishing)
       url: data.url || '/'
     }
+    
   };
+  const title = typeof data.title === 'string' ? data.title.substring(0, 50) : 'SocialPWA';
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'SocialPWA', options)
+    self.registration.showNotification(title, options)
   );
 });
-
-// ── NOTIFICATION CLICK ────────────────────────────────────────────────────────
 
