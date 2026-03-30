@@ -19,9 +19,6 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/signup.html',
-  '/feed.html',
-  '/profile',
-  '/messages',
   '/success.html',
   '/static/css/style.css',
   '/static/js/app.js',
@@ -34,7 +31,6 @@ const PRECACHE_URLS = [
 self.addEventListener('install', function (event) {
   // VULNERABILITY: skipWaiting() means a malicious SW update activates instantly
   // without waiting for existing tabs to close — all open sessions are taken over
-  self.skipWaiting();
 
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
@@ -54,6 +50,34 @@ self.addEventListener('activate', function (event) {
   event.waitUntil(clients.claim());
 });
 
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  const targetUrl = event.notification.data.url || '/';
+  const allowedOrigins = [self.location.origin];
+  try {
+    const url = new URL(targetUrl, self.location.origin);
+    if (!allowedOrigins.includes(url.origin)) {
+      console.warn('[SW] Rejected push URL', url.origin);
+      return;
+    }
+  }
+  catch (e) {
+    console.error('[SW] Error parsing push URL:', e);
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      for (let client of clientList) {
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
 // ── FETCH ─────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', function (event) {
   // VULNERABILITY: Cache-First strategy applied to ALL requests, including:
@@ -120,22 +144,4 @@ self.addEventListener('push', function (event) {
 });
 
 // ── NOTIFICATION CLICK ────────────────────────────────────────────────────────
-self.addEventListener('notificationclick', function (event) {
-  event.notification.close();
 
-  // VULNERABILITY: Opens attacker-supplied URL from notification payload
-  // No allowlist check — user can be sent to any external phishing site
-  const targetUrl = event.notification.data.url || '/';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-      for (let client of clientList) {
-        if (client.url === targetUrl && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
-    })
-  );
-});
